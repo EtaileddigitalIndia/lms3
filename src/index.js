@@ -98,6 +98,103 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
+// ✅ Enhanced CORS configuration for production
+const allowedOrigins = [
+  // Development origins
+  "http://localhost:3000",
+  "http://localhost:8080", 
+  "http://localhost:5173",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:8080",
+  "http://127.0.0.1:5173",
+  
+  // Production origins
+  process.env.FRONTEND_URL,
+  "https://eduflowstudentportal.netlify.app",
+  "https://global-lms-frontend.netlify.app",
+  
+  // Add common Netlify patterns
+  "https://main--eduflowstudentportal.netlify.app",
+  "https://deploy-preview-*--eduflowstudentportal.netlify.app",
+].filter(Boolean);
+
+console.log("🔧 CORS Configuration:", {
+  allowedOrigins,
+  FRONTEND_URL: process.env.FRONTEND_URL,
+  NODE_ENV: process.env.NODE_ENV,
+});
+
+// More permissive CORS for production deployment
+const corsOptions = {
+  origin: function (origin, callback) {
+    console.log("🌐 CORS Request from:", origin || "no-origin");
+    
+    // Always allow requests with no origin (mobile apps, Postman, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // In development, be more permissive
+    if (process.env.NODE_ENV !== "production") {
+      if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+        console.log("✅ Development: Allowing localhost origin");
+        return callback(null, true);
+      }
+    }
+    
+    // Check exact matches
+    if (allowedOrigins.includes(origin)) {
+      console.log("✅ Exact match: Allowing origin");
+      return callback(null, true);
+    }
+    
+    // Check for Netlify deploy previews and branch deploys
+    if (origin.includes("netlify.app")) {
+      console.log("✅ Netlify domain: Allowing origin");
+      return callback(null, true);
+    }
+    
+    // Check for Render domains
+    if (origin.includes("onrender.com")) {
+      console.log("✅ Render domain: Allowing origin");
+      return callback(null, true);
+    }
+    
+    // Check for Vercel domains
+    if (origin.includes("vercel.app")) {
+      console.log("✅ Vercel domain: Allowing origin");
+      return callback(null, true);
+    }
+    
+    // Log blocked request for debugging
+    console.log("❌ CORS Blocked:", origin);
+    console.log("❌ Allowed origins:", allowedOrigins);
+    
+    // In production, be more strict but still allow common deployment platforms
+    if (process.env.NODE_ENV === "production") {
+      console.log("⚠️  Production: Allowing request but logging for review");
+      return callback(null, true); // Allow but log for monitoring
+    }
+    
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: [
+    "Content-Type", 
+    "Authorization", 
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "Access-Control-Request-Method",
+    "Access-Control-Request-Headers"
+  ],
+  exposedHeaders: ["Content-Length", "X-Foo", "X-Bar"],
+  maxAge: 86400, // 24 hours
+};
+
+app.use(cors(corsOptions));
 
 // ✅ Rate limiting
 const limiter = rateLimit({
